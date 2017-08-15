@@ -1,0 +1,468 @@
+{
+  "Description": "Deploys a secure Linux instance with Chef Bootstrap",
+  "Outputs": {
+    "PrivateIp": {
+      "Value": {
+        "Fn::GetAtt": [
+          "RoleEC2Instance",
+          "PrivateIp"
+        ]
+      }
+    }
+  },
+  "Parameters": {
+    "Hostname": {
+      "Description": "Hostname Example: purpose-function-region-provider.domainname. jenkins-app01-eu.aws.inmarsat.com",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "BU": {
+      "Description": "Business Unit project is for",
+      "MinLength": "1",
+      "Type": "String"
+    }, 
+    "Project": {
+      "Description": "Name of project for financial reporting purposes",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "Owner": {
+      "Description": "Project Owner",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "DefaultChefServerValidatorName": {
+      "Default": "inmarsat-validator",
+      "Description": "Chef validation_client_name eg yourproject-validator",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "DefaultChefServerUri": {
+      "Description": "Chef Server URL with organization i.e. https://chef-server.inmarsat.com/organizations/inmarsat",
+      "Type": "String"
+    },
+    "DefaultKeypair": {
+      "AllowedPattern": "[\\w-\\.]*",
+      "ConstraintDescription": "Must be valid key name for SSH access",
+      "Description": "Enter name of existing key",
+      "MaxLength": "64",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "DefaultVpcId": {
+      "AllowedPattern": "vpc-[a-f0-9]{8}",
+      "ConstraintDescription": "Must be valid VPC = vpc-xxxxxxxx",
+      "Description": "VPC ID",
+      "MaxLength": "12",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "DefaultDiskType": {
+      "ConstraintDescription": "Must be a valid type: standard or gp2 (io1 must be set within the template)",
+      "Description": "Use either standard or SSD generation EBS volumes.",
+      "Default": "standard",
+      "Type": "String"
+    },
+    "DefaultRootDiskSize": {
+      "ConstraintDescription": "Size of EC2 instance root EBS volume in GB",
+      "Description": "Instance Root Disk Size",
+      "Default": "100",
+      "Type": "Number"
+    },
+    "DefaultCommonSecurityGroup": {
+      "AllowedPattern": "sg-[a-z0-9]*",
+      "Default": "sg-0ea36f68",
+      "ConstraintDescription": "Must be valid security group ID = sg-xxxxxxxx",
+      "Description": "ID for the default security group",
+      "Type": "String"
+    },
+    "TagNames": {
+      "ConstraintDescription": "Must be CSV, 5 tag names",
+      "Default": "name1,name2,name3,name4,name5",
+      "Description": "5 user specified tag names, comma separated Consisting of min: Name,Owner,BU",
+      "Type": "CommaDelimitedList"
+    },
+    "TagValues": {
+      "ConstraintDescription": "Must be CSV, 5 tag values",
+      "Default": ",,,,",
+      "Description": "5 user specified tag values, comma separated",
+      "Type": "CommaDelimitedList"
+    },
+    "RoleChefRunlist": {
+      "Description": "Inital chef run_list role[xyz],...",
+      "Default": "role[base]",
+      "Type": "String"
+    },
+    "RoleChefServerIP": {
+      "Description": "Chef Server IP for /etc/hosts entry",
+      "MaxLength": "18",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "RoleChefServerFQDN": {
+      "Description": "Chef Server FQDN for /etc/hosts entry",
+      "MaxLength": "50",
+      "MinLength": "1",
+      "Type": "String"
+    },   
+    "RoleEC2Ami": {
+      "AllowedPattern": "ami-[a-z0-9]{8}",
+      "Default": "ami-1f27696c",
+      "ConstraintDescription": "Must be valid ami-id.",
+      "Description": "EC2 Instance Base AMI",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "RoleInstanceType": {
+      "ConstraintDescription": "Must be valid EC2 instance type xx.xxxxx",
+      "Description": "EC2 instance type (size)",
+      "Default": "m4.large",
+      "Type": "String"
+    },
+    "RoleSubnetId": {
+      "AllowedPattern": "subnet-[a-z0-9]{8}",
+      "ConstraintDescription": "Must be valid subnet = subnet-xxxxxxxx",
+      "Description": "Subnet id eg subnet-xxxxxxxx",
+      "MaxLength": "18",
+      "MinLength": "1",
+      "Type": "String"
+    },
+    "DefaultAlarmSNSArn": {
+      "Description": "Subscribed to SNS topic for CloudWatch alarms (requires IAM policy on SNS to work).",
+      "MinLength": "1",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "RoleEC2Instance": {
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "files": {
+              "/etc/chef/client.rb": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "log_level :info\n",
+                      "log_location STDOUT\n",
+                      "ssl_verify_mode  :verify_none\n",
+                      "chef_server_url '",
+                      {
+                        "Ref": "DefaultChefServerUri"
+                      },
+                      "'\n",
+                      "validation_client_name '",
+                      {
+                        "Ref": "DefaultChefServerValidatorName"
+                      },
+                      "'\n"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "644",
+                "owner": "root"
+              },
+              "/etc/chef/first-boot.json": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "{ \"run_list\": [\"",
+                      {
+                        "Ref": "RoleChefRunlist"
+                      },
+                      "\"] }\n"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "644",
+                "owner": "root"
+              },
+              "/etc/chef/extendedmetadata.json": {
+                "content": {
+                  "provider": {
+                    "aws": {
+                      "account": {
+                        "id": {
+                          "Ref": "AWS::AccountId"
+                        }
+                      },
+                      "vpc": {
+                        "id": {
+                          "Ref": "DefaultVpcId"
+                        },
+                        "region": {
+                          "Ref": "AWS::Region"
+                        }
+                      }
+                    }
+                  },
+                  "inmarsat": {
+                    "instantiation": {
+                      "node": {
+                        "role": "idam"
+                      },
+                      "id": {
+                        "Ref": "Hostname"
+                      }
+                    }
+                  }
+                },
+                "group": "root",
+                "mode": "644",
+                "owner": "root"
+              },
+              "/etc/chef/add-node-name.sh": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "#!/bin/sh",
+		      "\ncd /etc/chef/\n",
+		      "\ncurl https://s3-eu-west-1.amazonaws.com/idam-chef-store/inmarsat-validator.pem > validation.pem\n",
+                      "\ncurl https://s3-eu-west-1.amazonaws.com/idam-chef-store/secret_key > encrypted_data_bag_secret\n",
+                      "\nchown 400 /etc/chef/encrypted_data_bag_secret\n",
+                      "instanceId=$(curl http://169.254.169.254/latest/meta-data/instance-id | cut -d'-' -f 2)\n",
+                      "serviceId=\"",
+                      {
+                        "Ref": "Hostname"
+                      },
+                      "\"\n",
+                      "role=\"base\"\n",
+                      "fqdn=\"$serviceId\"\n",
+                      "nodeName=\"node_name \\\"$fqdn\\\"\"\n",
+                      "echo $nodeName >>/etc/chef/client.rb"
+                    ]
+                  ]
+                },
+		"group": "root",
+                "mode": "111",
+                "owner": "root"
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "Monitoring": true,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "Hostname"
+                  },
+                  ""
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Business Unit",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "BU"
+                  },
+                  ""
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Project Name",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "Project"
+                  },
+                  ""
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "Project Owner",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  {
+                    "Ref": "Owner"
+                  },
+                  ""
+                ]
+              ]
+            }
+          }
+          ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "VolumeSize": {
+                "Ref": "DefaultRootDiskSize"
+              },
+              "VolumeType": {
+                "Ref": "DefaultDiskType"
+              }
+            }
+          }
+        ],
+        "ImageId": {
+          "Ref": "RoleEC2Ami"
+        },
+        "InstanceType": {
+          "Ref": "RoleInstanceType"
+        },
+        "KeyName": {
+          "Ref": "DefaultKeypair"
+        },
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash -x\n",
+                "exec > >(tee /var/log/user_data_run.log)\n",
+                "exec 2>&1\n",
+                "date\n",
+                "cd /opt\n",
+                "curl -O https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                "tar xzvf aws-cfn-*.gz\n",
+                "cd aws-cfn* && python setup.py install\n",
+                "echo ",
+                { 
+                  "Ref": "RoleChefServerIP" 
+                },
+		" ",
+                { 
+                  "Ref" : "RoleChefServerFQDN"
+                },
+                " >> /etc/hosts\n", 
+                "mkdir -p /etc/chef\n",
+                "cfn-init -v -s ",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                " -r RoleEC2Instance --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+		"\ncd /etc/chef/\n",
+                "\ncurl https://s3-eu-west-1.amazonaws.com/idam-chef-store/inmarsat-validator.pem > validation.pem\n",
+                "/etc/chef/add-node-name.sh",
+		"\ncd /etc/chef/\n",
+		"\ncurl https://s3-eu-west-1.amazonaws.com/idam-chef-store/inmarsat-validator.pem > validation.pem\n",
+                "chef-client -j /etc/chef/first-boot.json\n",
+                "date\n",
+                "exit 0\n"
+              ]
+            ]
+          }
+        },
+        "IamInstanceProfile": {
+          "Ref": "DefaultWorkloadIAMProfile"
+        },
+        "NetworkInterfaces": [
+          {
+            "GroupSet": [
+              {
+                "Ref": "RoleSecurityGroupOuter"
+              },
+              {
+                "Ref": "DefaultCommonSecurityGroup"
+              }
+            ],
+            "SubnetId": {
+              "Ref": "RoleSubnetId"
+            },
+            "DeviceIndex": "0",
+            "AssociatePublicIpAddress": false
+          }
+        ]
+      },
+      "Type": "AWS::EC2::Instance"
+    },
+    "RoleSecurityGroupOuter": {
+      "Properties": {
+        "GroupDescription": "Security group for the vanilla linux instance.",
+        "VpcId": {
+          "Ref": "DefaultVpcId"
+        },
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": "10.135.0.0/16",
+            "ToPort": "22",
+            "FromPort": "22",
+            "IpProtocol": "tcp"
+          }
+        ]
+      },
+      "Type": "AWS::EC2::SecurityGroup"
+    },
+    "DefaultWorkloadIAMRole": {
+      "Properties": {
+        "Policies": [
+          {
+            "PolicyName": "DefaultPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Action": [
+                    "s3:Get*",
+                    "s3:List*",
+                    "s3:GetObject*",
+                    "s3:ListBucket*",
+                    "logs:*"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ],
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sts:AssumeRole"
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              }
+            }
+          ]
+        },
+        "Path": "/"
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "DefaultWorkloadIAMProfile": {
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "DefaultWorkloadIAMRole"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::InstanceProfile"
+    }
+  }
+}

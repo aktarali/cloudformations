@@ -1,0 +1,115 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "AWS CloudFormation Template TO create SG's for a given VPC. VPCid will be a parameter passed by SNOW.",
+
+  "Parameters" : {
+
+    "VpcId": {
+      "Description" : "VPCid for SG's",
+      "Type": "String",
+      "MinLength": "12",
+      "MaxLength": "12"
+    },
+    
+  "SourceCidrForRDP" : {
+      "Description" : "IP Cidr from which you are likely to RDP into the instances. You can add rules later by modifying the created security groups e.g. 54.32.98.160/32",
+      "Type" : "String",
+      "MinLength" : "9",
+      "MaxLength" : "18",
+      "AllowedPattern" : "^([0-9]+\\.){3}[0-9]+\\/[0-9]+$"
+    }
+  },
+
+  "Resources" : {
+    "CommonSecurityGroupChefServer" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Chef Server SG Access from All Chef client nodes",
+        "VpcId" : {"Ref" : "VPC"},
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "8080", "ToPort" : "8080", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "5985", "ToPort" : "5985", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "5986", "ToPort" : "5986", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "4000", "ToPort" : "4000", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "9462", "ToPort" : "9462", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" } },
+          {"IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupChefClient" }}
+        ]
+      }      
+    }, 
+    "CommonSecurityGroupChefClient" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Chef Clients SG to be attached to all nodes",
+        "VpcId" : {"Ref" : "VPC"},
+        "SecurityGroupIngress" : [
+        ]
+      }      
+    },   
+
+    "CommonSecurityGroupVFenseServer" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "VFense Server SG access from All clients",
+        "VpcId" : {"Ref" : "VPC"},
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "tcp", "FromPort" : "9011", "ToPort" : "9011", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupVFenseClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "9009", "ToPort" : "9009", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupVFenseClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "9010", "ToPort" : "9010", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupVFenseClient" } },
+          {"IpProtocol" : "tcp", "FromPort" : "5985", "ToPort" : "443", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupVFenseClient" } },
+          {"IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "SourceSecurityGroupName" : { "Ref" : "CommonSecurityGroupVFenseClient" } }
+        ]
+      }      
+    }, 
+    "CommonSecurityGroupVFenseClient" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "VFense client SG to be attached to all nodes",
+        "VpcId" : {"Ref" : "VPC"},
+        "SecurityGroupIngress" : [
+        ]
+      }      
+    },   
+
+    "DomainControllerSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Domain Controller",
+        "VpcId" : {"Ref" : "VPC"},
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "udp", "FromPort" : "123", "ToPort" : "123", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "135", "ToPort" : "135", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "udp", "FromPort" : "138", "ToPort" : "138", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "1024", "ToPort" : "65535", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "389", "ToPort" : "389", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "udp", "FromPort" : "389", "ToPort" : "389", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "636", "ToPort" : "636", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "3268", "ToPort" : "3268", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "3269", "ToPort" : "3269", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "53", "ToPort" : "53", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "udp", "FromPort" : "53", "ToPort" : "53", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "88", "ToPort" : "88", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "udp", "FromPort" : "88", "ToPort" : "88", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "445", "ToPort" : "445", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "udp", "FromPort" : "445", "ToPort" : "445", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "udp", "FromPort" : "135", "ToPort" : "135", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "3389", "ToPort" : "3389", "CidrIp" : { "Ref" : "SourceCidrForRDP" }},
+          {"IpProtocol" : "icmp", "FromPort" : "-1", "ToPort" : "-1", "SourceSecurityGroupName" : { "Ref" : "DomainMemberSecurityGroup" }}
+        ]
+      }      
+    }, 
+    "DomainMemberSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Domain Members",
+	    "VpcId" : {"Ref" : "VPC"},
+        "SecurityGroupIngress" : [
+	    {"IpProtocol" : "tcp", "FromPort" : "3389", "ToPort" : "3389", "CidrIp" : { "Ref" : "SourceCidrForRDP" }}
+	    ]
+        }      
+      }
+    }
+  }

@@ -1,0 +1,353 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Lexis Nexis Template to setup RETS AMI",
+    "Parameters": {
+        "InstanceType": {
+            "Description": "WebServer EC2 instance type",
+            "Type": "String",
+            "Default": "m1.small",
+            "AllowedValues": [
+                "t1.micro",
+                "m1.small",
+                "m1.medium",
+                "m1.large",
+                "m1.xlarge",
+                "m2.xlarge",
+                "m2.2xlarge",
+                "m2.4xlarge",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "c1.medium",
+                "c1.xlarge",
+                "cc1.4xlarge",
+                "cc2.8xlarge",
+                "cg1.4xlarge"
+            ],
+            "ConstraintDescription": "must be a valid EC2 instance type."
+        },
+        "WebServerPort": {
+            "Description": "TCP/IP port of the web server",
+            "Type": "String",
+            "Default": "80"
+        },
+        "InstanceSecurityGroup": {
+            "Description": "Please type in the security group you want to use",
+            "Type": "String",
+            "Default": "default"
+        },
+        "AmiId": {
+            "Description": "Please enter the Ami Id you want to use",
+            "Type": "String",
+            "Default": "ami-0a3fda7d"
+        },
+        "S3Bucket": {
+            "Description": "S3 Bucket",
+            "Type": "String",
+            "Default": "lexis-nexis-test"
+        },
+        "KeyName": {
+            "Description": "Please choose the keyname you want to use",
+            "Type": "String",
+            "MinLength": "1",
+            "Default": "j"
+        },
+        "NameTag": {
+            "Description": "Name of your instance without spaces",
+            "Type": "String",
+            "Default": "LexisNexis-TestDeploy"
+        },
+        "ProductTag": {
+            "Description": "- Used to define the application",
+            "Type": "String",
+            "Default": "Throw away instance"
+        },
+        "CreatorTag": {
+            "Description": "define the initial person who set up the instance as a contact reference within the cloud team",
+            "Type": "String",
+            "Default": "Throw away instance"
+        },
+        "TeamTag": {
+            "Description": "Used to define the team working on application",
+            "Type": "String",
+            "Default": "Content Solutions Tech Dev"
+        },
+        "EnvironmentTag": {
+            "Description": "Used to distinguish between production, development, and staging infrastructure",
+            "Type": "String",
+            "Default": "Test"
+        },
+        "PersistentTag": {
+            "Description": "Used to identify if the instance is to stay active 24/7 or can be automated to be placed in standby after core business hours",
+            "Type": "String",
+            "Default": "No"
+        }
+    },
+    "Mappings": {
+        "AWSInstanceType2Arch": {
+            "t1.micro": {
+                "Arch": "64"
+            },
+            "m1.small": {
+                "Arch": "64"
+            },
+            "m1.medium": {
+                "Arch": "64"
+            },
+            "m1.large": {
+                "Arch": "64"
+            },
+            "m1.xlarge": {
+                "Arch": "64"
+            },
+            "m2.xlarge": {
+                "Arch": "64"
+            },
+            "m2.2xlarge": {
+                "Arch": "64"
+            },
+            "m3.xlarge": {
+                "Arch": "64"
+            },
+            "m3.2xlarge": {
+                "Arch": "64"
+            },
+            "m2.4xlarge": {
+                "Arch": "64"
+            },
+            "c1.medium": {
+                "Arch": "64"
+            },
+            "c1.xlarge": {
+                "Arch": "64"
+            }
+        }
+    },
+    "Resources": {
+        "User": {
+            "Type": "AWS::IAM::User",
+            "Properties": {
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyName": "root",
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "*",
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "HostKeys": {
+            "Type": "AWS::IAM::AccessKey",
+            "Properties": {
+                "UserName": {
+                    "Ref": "User"
+                }
+            }
+        },
+        "WaitHandle": {
+            "Type": "AWS::CloudFormation::WaitConditionHandle"
+        },
+        "Ec2Instance1": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "SecurityGroups": [
+                    {
+                        "Ref": "InstanceSecurityGroup"
+                    }
+                ],
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "ImageId": {
+                    "Ref": "AmiId"
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "<script>\n",
+                                "cfn-init.exe -v -s ",
+                                {
+                                    "Ref": "AWS::StackId"
+                                },
+                                " -r Ec2Instance1",
+                                " --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n",
+                                "</script>"
+                            ]
+                        ]
+                    }
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Ref": "NameTag"
+                        }
+                    },
+                    {
+                        "Key": "Product",
+                        "Value": {
+                            "Ref": "ProductTag"
+                        }
+                    },
+                    {
+                        "Key": "Creator",
+                        "Value": {
+                            "Ref": "CreatorTag"
+                        }
+                    },
+                    {
+                        "Key": "Team",
+                        "Value": {
+                            "Ref": "TeamTag"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "EnvironmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Persistent",
+                        "Value": {
+                            "Ref": "PersistentTag"
+                        }
+                    }
+                ]
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Authentication": {
+                    "S3AccessCreds": {
+                        "type": "S3",
+                        "accessKeyId": {
+                            "Ref": "HostKeys"
+                        },
+                        "secretKey": {
+                            "Fn::GetAtt": [
+                                "HostKeys",
+                                "SecretAccessKey"
+                            ]
+                        },
+                        "buckets": [
+                            {
+                                "Ref": "S3Bucket"
+                            }
+                        ]
+                    }
+                },
+                "AWS::CloudFormation::Init": {
+                    "config": {
+                        "files": {
+                            "c:\\cfn\\cfn-hup.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[main]\n",
+                                            "stack=",
+                                            {
+                                                "Ref": "AWS::StackId"
+                                            },
+                                            "\n",
+                                            "region=",
+                                            {
+                                                "Ref": "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "c:\\cfn\\hooks.d\\cfn-auto-reloader.conf": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "[cfn-auto-reloader-hook]\n",
+                                            "triggers=post.update\n",
+                                            "path=Resources.WindowsBox.Metadata.AWS::CloudFormation::Init\n",
+                                            "action=cfn-init.exe -v -s ",
+                                            {
+                                                "Ref": "AWS::StackId"
+                                            },
+                                            " -r Ec2Instance1",
+                                            " --region ",
+                                            {
+                                                "Ref": "AWS::Region"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "C:\\Downloads\\rubyinstaller.exe": {
+                                "source": "http://dl.bintray.com/oneclick/rubyinstaller/rubyinstaller-1.9.3-p448.exe?direct"
+                            },
+                            "C:\\Downloads\\devkitinstaller.exe": {
+                                "source": "https://github.com/downloads/oneclick/rubyinstaller/DevKit-tdm-32-4.5.2-20111229-1559-sfx.exe"
+                            }
+                        },
+                        "commands": {
+                            "0-ruby-install": {
+                                "command": "C:\\Downloads\\rubyinstaller.exe /silent /tasks=\"assocfiles,modpath\"",
+                                "waitAfterCompletion": "30"
+                            },
+                            "1-devkit-extract": {
+                                "command": "C:\\Downloads\\devkitinstaller.exe -o\"C:\\DevKit\" -y",
+                                "waitAfterCompletion": "30"
+                            },
+                            "2-devkit-init": {
+                                "command": "C:\\Ruby193\\bin\\ruby C:\\DevKit\\dk.rb init",
+                                "waitAfterCompletion": "10"
+                            },
+                            "3-devkit-init": {
+                                "command": "C:\\Ruby193\\bin\\ruby C:\\DevKit\\dk.rb install",
+                                "waitAfterCompletion": "10"
+                            },
+                            "4-chef-install": {
+                                "command": "C:\\Ruby193\\bin\\gem install chef --no-ri --no-rdoc",
+                                "waitAfterCompletion": "30"
+                            }
+                        },
+                        "services": {
+                            "windows": {
+                                "cfn-hup": {
+                                    "enabled": "true",
+                                    "ensureRunning": "true",
+                                    "files": [
+                                        "c:\\cfn\\cfn-hup.conf",
+                                        "c:\\cfn\\hooks.d\\cfn-auto-reloader.conf"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "InstanceId": {
+            "Description": "Instance Id of the EC2 Instance",
+            "Value": {
+                "Ref": "Ec2Instance1"
+            }
+        }
+    }
+}
